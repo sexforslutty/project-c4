@@ -1,64 +1,65 @@
 # Club Shift Manager
 
-Simple Python app for a 24/7 computer club to track staff shifts, calculate payroll, and provide manager/employee access through the web and Telegram.
+Простое Python-приложение для компьютерного клуба, работающего 24/7, которое помогает отслеживать смены сотрудников, рассчитывать оплату и вести учет выплат руководителю.
 
-## Features
+## Возможности
 
-- Manager dashboard with current staff on shift
-- Employee shift check-in/check-out
-- Per-employee payroll reports and payouts
-- Telegram bot scaffold and Telegram login support
-- Username/password authentication for staff and manager
-- SQLite for local development and easy setup
+- Панель руководителя с текущими сотрудниками на смене
+- Вход/выход сотрудников на смену
+- Отчеты по сотрудникам, сменам и оплате
+- Выплаты и задолженность по каждому сотруднику
+- Telegram-бот и поддержка входа через Telegram Login
+- Авторизация по логину и паролю для руководителя и сотрудников
+- SQLite для локальной разработки и быстрой настройки
 
-## Local startup
+## Быстрый запуск
 
-1. Create a virtual environment
+1. Создайте виртуальное окружение
    ```bash
    python -m venv .venv
    . .venv/bin/activate
    ```
-2. Install dependencies
+2. Установите зависимости
    ```bash
    pip install -r requirements.txt
    ```
-3. Configure environment
+3. Настройте переменные окружения
    ```bash
    cp .env.example .env
    ```
-   Update the values in `.env` before starting the app.
-4. Run the app
+   После этого обновите значения в `.env` перед запуском приложения.
+4. Запустите приложение
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
-5. Open the browser at `http://localhost:8000`.
+5. Откройте страницу в браузере: `http://localhost:8000`
 
-## Default login
+## Логин по умолчанию
 
-Default local demo accounts are created automatically from `.env`: manager and staff accounts. The app seeds a manager and sample employees if the database is empty.
+Локальные тестовые аккаунты создаются автоматически из `.env`. При пустой базе данных приложение создаёт руководителя и несколько сотрудников для проверки работы.
 
-## Install script
+## Установочный скрипт
 
-For a fresh Linux machine, run:
+Для свежей Linux-машины выполните:
 
 ```bash
 bash install.sh
 ```
 
-The installer creates a `.env` file, resets the local database, creates a manager account from prompts, and starts the app as a background service.
+Скрипт создаёт `.env`, сбрасывает локальную базу данных, запрашивает логин и пароль руководителя, и запускает приложение как системную службу.
 
-## Environment variables
+## Переменные окружения
 
-- `APP_SECRET_KEY` — app session secret
-- `DATABASE_URL` — SQLite or PostgreSQL URL
-- `HOST` and `PORT` — web server bind
-- `MANAGER_USERNAME` and `MANAGER_PASSWORD` — manager login
-- `MANAGER_TELEGRAM_ID` — optional Telegram ID for the manager
-- `TELEGRAM_BOT_TOKEN` — Telegram bot token
-- `TELEGRAM_BOT_USERNAME` — Telegram bot username without the leading `@`
+- `APP_SECRET_KEY` — секретный ключ приложения
+- `DATABASE_URL` — адрес SQLite или PostgreSQL
+- `HOST` и `PORT` — адрес и порт запуска веб-сервера
+- `MANAGER_USERNAME` и `MANAGER_PASSWORD` — логин и пароль руководителя
+- `MANAGER_TELEGRAM_ID` — необязательный Telegram ID руководителя
+- `TELEGRAM_BOT_TOKEN` — токен Telegram-бота
+- `TELEGRAM_BOT_USERNAME` — имя Telegram-бота без символа `@`
 
-## Security notes
+## Безопасность
 
-- Never commit real secrets into the repo.
-- Keep `.env` local or on the server only.
-- For public Telegram login, a real domain and valid HTTPS are required.
+- Не коммитьте реальные секреты в репозиторий
+- Храните `.env` только локально или на сервере
+- Для публичного входа через Telegram необходим реальный домен и HTTPS
