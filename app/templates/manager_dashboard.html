@@ -289,11 +289,9 @@
                 {% endif %}
             </td>
             <td>
-                {% if item.role != 'manager' %}
                 <form method="post" action="/manager/delete_employee/{{ item.employee_id or item.id }}" onsubmit="return confirm('Удалить сотрудника {{ item.full_name }}?');">
                     <button type="submit" class="secondary">Удалить</button>
                 </form>
-                {% endif %}
             </td>
         </tr>
         {% endfor %}

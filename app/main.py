@@ -186,58 +186,17 @@ def seed_demo_data(db: Session):
         return
 
     manager_username, manager_password, manager_telegram_id = get_manager_credentials()
-    employees = [
-        Employee(
-            full_name='Руководитель',
-            username=manager_username,
-            password_hash=hash_password(manager_password),
-            role='manager',
-            phone='+79990000001',
-            telegram_id=manager_telegram_id or '1001',
-            hourly_rate=350.0,
-            is_active=True,
-        ),
-        Employee(
-            full_name='Иван Петров',
-            username='ivan',
-            password_hash=hash_password('ivan123'),
-            role='staff',
-            phone='+79990000002',
-            telegram_id='1002',
-            hourly_rate=250.0,
-            is_active=True,
-        ),
-        Employee(
-            full_name='Мария Сидорова',
-            username='maria',
-            password_hash=hash_password('maria123'),
-            role='staff',
-            phone='+79990000003',
-            telegram_id='1003',
-            hourly_rate=260.0,
-            is_active=True,
-        ),
-        Employee(
-            full_name='Алексей Кузнецов',
-            username='alex',
-            password_hash=hash_password('alex123'),
-            role='staff',
-            phone='+79990000004',
-            telegram_id='1004',
-            hourly_rate=270.0,
-            is_active=True,
-        ),
-    ]
-    db.add_all(employees)
-    db.commit()
-
-    now = datetime.utcnow()
-    shifts = [
-        Shift(employee_id=employees[0].id, started_at=now - timedelta(hours=5), ended_at=now - timedelta(hours=1), status='completed', pay_amount=1400.0),
-        Shift(employee_id=employees[1].id, started_at=now - timedelta(hours=3), status='active', notes='Начал смену'),
-        Shift(employee_id=employees[2].id, started_at=now - timedelta(hours=7), ended_at=now - timedelta(hours=2), status='completed', pay_amount=1300.0),
-    ]
-    db.add_all(shifts)
+    manager = Employee(
+        full_name='Руководитель',
+        username=manager_username,
+        password_hash=hash_password(manager_password),
+        role='manager',
+        phone='+79990000001',
+        telegram_id=manager_telegram_id or '1001',
+        hourly_rate=350.0,
+        is_active=True,
+    )
+    db.add(manager)
     db.commit()
 
 
@@ -355,7 +314,7 @@ def manager_dashboard(
     if not current_user.role or current_user.role.lower() != 'manager':
         raise HTTPException(status_code=403, detail='Access denied')
 
-    employees = db.query(Employee).order_by(Employee.full_name).all()
+    employees = db.query(Employee).filter((Employee.role.is_(None)) | (Employee.role != 'manager')).order_by(Employee.full_name).all()
     all_shifts = db.query(Shift).order_by(Shift.started_at.desc()).all()
     messages = db.query(Message).order_by(Message.created_at.desc()).all()
     payments = db.query(PayrollPayment).order_by(PayrollPayment.paid_at.desc()).all()
@@ -619,12 +578,13 @@ def list_employees(db: Session = Depends(get_db)):
     return [
         {'id': employee.id, 'full_name': employee.full_name, 'role': employee.role, 'hourly_rate': employee.hourly_rate}
         for employee in employees
+        if not (employee.role and employee.role.lower() == 'manager')
     ]
 
 
 @app.get('/api/manager/summary')
 def manager_summary(db: Session = Depends(get_db)):
-    employees = db.query(Employee).order_by(Employee.full_name).all()
+    employees = db.query(Employee).filter((Employee.role.is_(None)) | (Employee.role != 'manager')).order_by(Employee.full_name).all()
     all_shifts = db.query(Shift).order_by(Shift.started_at.desc()).all()
     employee_shifts = {
         employee.id: [shift for shift in all_shifts if shift.employee_id == employee.id]

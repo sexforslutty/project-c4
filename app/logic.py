@@ -55,6 +55,8 @@ def payroll_summary(
     total_payouts = 0.0
     active_staff = 0
     for employee in employees:
+        if employee.role and employee.role.lower() == 'manager':
+            continue
         payments = employee_payments.get(employee.id, []) if employee_payments else []
         report = build_employee_report(employee, employee_shifts.get(employee.id, []), payments)
         total_payment += report['total_payment']
