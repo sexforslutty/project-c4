@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Панель руководителя</h1>
+<form method="post" action="/logout" style="margin-bottom: 16px;">
+    <button type="submit" class="secondary">Выйти</button>
+</form>
+
+<div class="toolbar">
+    <form method="get" action="/manager" class="filter-form">
+        <label>
+            Дата с
+            <input type="date" name="start_date" value="{{ filter_start or '' }}">
+        </label>
+        <label>
+            Дата по
+            <input type="date" name="end_date" value="{{ filter_end or '' }}">
+        </label>
+        <button type="submit">Применить</button>
+    </form>
+</div>
+
+<div class="stats">
+    <div class="card">
+        <div class="label">Всего сотрудников</div>
+        <div class="value">{{ summary.employees | length }}</div>
+    </div>
+    <div class="card">
+        <div class="label">Сейчас на смене</div>
+        <div class="value">{{ summary.active_staff }}</div>
+    </div>
+    <div class="card">
+        <div class="label">Итог по сменам</div>
+        <div class="value">{{ '%.2f'|format(summary.total_paid) }} ₽</div>
+    </div>
+    <div class="card">
+        <div class="label">Выплачено</div>
+        <div class="value">{{ '%.2f'|format(total_payouts) }} ₽</div>
+    </div>
+    <div class="card">
+        <div class="label">К выплате</div>
+        <div class="value">{{ '%.2f'|format(total_due) }} ₽</div>
+    </div>
+    <div class="card">
+        <div class="label">Завершённых смен</div>
+        <div class="value">{{ completed_shifts }}</div>
+    </div>
+</div>
+
+<div class="panel-grid">
+    <div class="panel">
+        <h2>Добавить сотрудника</h2>
+        <form method="post" action="/manager/add_employee" class="stack-form">
+            <label>
+                ФИО
+                <input type="text" name="full_name" placeholder="Например: Анна Иванова" required>
+            </label>
+            <label>
+                Логин
+                <input type="text" name="username" placeholder="Например: ivan" required>
+            </label>
+            <label>
+                Пароль
+                <input type="password" name="password" placeholder="Придумайте пароль" required>
+            </label>
+            <label>
+                Должность
+                <input type="text" name="role" value="staff" placeholder="Например: администратор, кассир, менеджер">
+            </label>
+            <label>
+                Телефон
+                <input type="text" name="phone" placeholder="+7...">
+            </label>
+            <label>
+                Telegram ID
+                <input type="text" name="telegram_id" placeholder="123456789">
+            </label>
+            <label>
+                Ставка ₽/ч
+                <input type="number" name="hourly_rate" step="0.01" min="0" value="250">
+            </label>
+            <button type="submit">Добавить</button>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h2>Начать смену</h2>
+        <form method="post" action="/manager/checkin" class="stack-form">
+            <label>
+                Сотрудник
+                <select name="employee_id" required>
+                    {% for employee in employees %}
+                    <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                Примечание
+                <input type="text" name="notes" placeholder="Например: вечерняя смена">
+            </label>
+            <button type="submit">Начать смену</button>
+        </form>
+    </div>
+</div>
+
+<h2>Активные смены</h2>
+{% if active_shifts %}
+<table>
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Начало</th>
+            <th>Примечание</th>
+            <th>Действие</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for shift in active_shifts %}
+        <tr>
+            <td>{{ shift.employee.full_name }}</td>
+            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ shift.notes or '-' }}</td>
+            <td>
+                <form method="post" action="/manager/checkout">
+                    <input type="hidden" name="shift_id" value="{{ shift.id }}">
+                    <button type="submit" class="secondary">Завершить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Сейчас активных смен нет.</p>
+{% endif %}
+
+<h2>Последние завершённые смены</h2>
+{% if recent_shifts %}
+<table>
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Начало</th>
+            <th>Конец</th>
+            <th>Оплата</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for shift in recent_shifts %}
+        <tr>
+            <td>{{ shift.employee.full_name }}</td>
+            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ shift.ended_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ '%.2f'|format(shift.pay_amount) }} ₽</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>За выбранный период завершённых смен нет.</p>
+{% endif %}
+
+<div class="panel-grid">
+    <div class="panel">
+        <h2>Зафиксировать выплату</h2>
+        <form method="post" action="/manager/add_payment" class="stack-form">
+            <label>
+                Сотрудник
+                <select name="employee_id" required>
+                    {% for employee in employees %}
+                    <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                Сумма выплаты
+                <input type="number" name="amount" step="0.01" min="0" value="0" required>
+            </label>
+            <div class="inline-fields">
+                <label>
+                    Период с
+                    <input type="date" name="period_start">
+                </label>
+                <label>
+                    Период по
+                    <input type="date" name="period_end">
+                </label>
+            </div>
+            <label>
+                Комментарий
+                <input type="text" name="note" placeholder="Например: аванс, зарплата, компенсация">
+            </label>
+            <button type="submit">Сохранить выплату</button>
+        </form>
+    </div>
+</div>
+
+<h2>История выплат</h2>
+{% if payments %}
+<table>
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Период</th>
+            <th>Сумма</th>
+            <th>Дата выплаты</th>
+            <th>Комментарий</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for payment in payments %}
+        <tr>
+            <td>{{ payment.employee.full_name }}</td>
+            <td>{{ payment.period_start.strftime('%d.%m.%Y') if payment.period_start else '-' }} - {{ payment.period_end.strftime('%d.%m.%Y') if payment.period_end else '-' }}</td>
+            <td>{{ '%.2f'|format(payment.amount) }} ₽</td>
+            <td>{{ payment.paid_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ payment.note or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Выплат ещё не было.</p>
+{% endif %}
+
+<h2>Сообщения сотрудников</h2>
+{% if messages %}
+<table>
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Сообщение</th>
+            <th>Время</th>
+            <th>Статус</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for msg in messages %}
+        <tr>
+            <td>{{ msg.employee.full_name }}</td>
+            <td>{{ msg.text }}</td>
+            <td>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>
+                {% if msg.is_read %}
+                <span class="badge completed">Прочитано</span>
+                {% else %}
+                <form method="post" action="/manager/mark_message_read/{{ msg.id }}">
+                    <button type="submit" class="secondary">Отметить</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Сообщений от сотрудников пока нет.</p>
+{% endif %}
+
+<h2>Отчет по сотрудникам</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Должность</th>
+            <th>Часов</th>
+            <th>Смен</th>
+            <th>Итог по сменам</th>
+            <th>Выплачено</th>
+            <th>К выплате</th>
+            <th>Статус</th>
+            <th>Действие</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in summary.employees %}
+        <tr>
+            <td>{{ item.full_name }}</td>
+            <td>{{ item.role }}</td>
+            <td>{{ '%.2f'|format(item.total_hours) }}</td>
+            <td>{{ item.shift_count }}</td>
+            <td>{{ '%.2f'|format(item.total_payment) }} ₽</td>
+            <td>{{ '%.2f'|format(item.total_paid) }} ₽</td>
+            <td>{{ '%.2f'|format(item.amount_due) }} ₽</td>
+            <td>
+                {% if item.active_shift %}
+                <span class="badge active">На смене</span>
+                {% else %}
+                <span class="badge completed">Свободен</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if item.role != 'manager' %}
+                <form method="post" action="/manager/delete_employee/{{ item.employee_id or item.id }}" onsubmit="return confirm('Удалить сотрудника {{ item.full_name }}?');">
+                    <button type="submit" class="secondary">Удалить</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

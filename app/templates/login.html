@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Вход в систему</h1>
+<p>Введите логин и пароль сотрудника или руководителя.</p>
+
+{% if error %}
+<p class="error-message">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/login" class="stack-form">
+    <label>
+        Логин
+        <input type="text" name="username" placeholder="Например: manager или ivan" required>
+    </label>
+    <label>
+        Пароль
+        <input type="password" name="password" placeholder="Введите пароль" required>
+    </label>
+    <button type="submit">Войти</button>
+</form>
+
+<div class="status-line">
+    <p>Используйте логин и пароль, которые были указаны при установке проекта.</p>
+</div>
+
+<div class="status-line">
+    {% if telegram_widget_enabled and telegram_bot_username %}
+    <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ telegram_bot_username }}" data-size="large" data-userpic="false" data-request-access="write" data-onauth="onTelegramAuth(user)"></script>
+    <script type="text/javascript">
+        function onTelegramAuth(user) {
+            fetch('/auth/telegram/widget', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(user)
+            }).then(function(response) {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                if (response.ok) {
+                    window.location.reload();
+                    return;
+                }
+                response.text().then(function(text) {
+                    alert('Не удалось войти через Telegram: ' + text);
+                });
+            }).catch(function() {
+                alert('Ошибка входа через Telegram');
+            });
+        }
+    </script>
+    <p>или войдите через Telegram:</p>
+    {% elif telegram_bot_username %}
+    <p>Вход через Telegram доступен только на публичном домене, который привязан к боту через BotFather. Для локального теста используйте логин и пароль.</p>
+    {% else %}
+    <p>Для входа через Telegram добавьте TELEGRAM_BOT_USERNAME в .env и перезапустите сервер.</p>
+    {% endif %}
+</div>
+{% endblock %}

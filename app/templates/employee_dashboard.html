@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Личный кабинет: {{ employee.full_name }}</h1>
+<form method="post" action="/logout" style="margin-bottom: 16px;">
+    <button type="submit" class="secondary">Выйти</button>
+</form>
+
+<div class="stats">
+    <div class="card">
+        <div class="label">Должность</div>
+        <div class="value">{{ employee.role }}</div>
+    </div>
+    <div class="card">
+        <div class="label">Ставка</div>
+        <div class="value">{{ '%.2f'|format(employee.hourly_rate) }} ₽/ч</div>
+    </div>
+    <div class="card">
+        <div class="label">Итого часов</div>
+        <div class="value">{{ '%.2f'|format(report.total_hours) }}</div>
+    </div>
+    <div class="card">
+        <div class="label">Всего получено</div>
+        <div class="value">{{ '%.2f'|format(report.total_payment) }} ₽</div>
+    </div>
+</div>
+
+<div class="panel-grid">
+    <div class="panel">
+        <h2>Смена</h2>
+        {% if active_shift %}
+        <form method="post" action="/employee/{{ employee.id }}/checkout">
+            <button type="submit">Завершить смену</button>
+        </form>
+        {% else %}
+        <form method="post" action="/employee/{{ employee.id }}/checkin" class="stack-form">
+            <label>
+                Примечание
+                <input type="text" name="notes" placeholder="Например: вечерняя смена">
+            </label>
+            <button type="submit">Начать смену</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <h2>Написать руководителю</h2>
+        <form method="post" action="/employee/{{ employee.id }}/message" class="stack-form">
+            <label>
+                Сообщение
+                <input type="text" name="text" placeholder="Напишите руководителю, что нужно сделать или сообщить" required>
+            </label>
+            <button type="submit">Отправить</button>
+        </form>
+    </div>
+</div>
+
+<h2>Последняя выплата</h2>
+{% if last_payment %}
+<p>{{ last_payment.paid_at.strftime('%d.%m.%Y %H:%M') }} — {{ '%.2f'|format(last_payment.amount) }} ₽</p>
+{% else %}
+<p>Выплат пока не было.</p>
+{% endif %}
+
+<h2>История выплат</h2>
+{% if payments %}
+<table>
+    <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Сумма</th>
+            <th>Комментарий</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for payment in payments %}
+        <tr>
+            <td>{{ payment.paid_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ '%.2f'|format(payment.amount) }} ₽</td>
+            <td>{{ payment.note or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>История выплат пуста.</p>
+{% endif %}
+
+<h2>История смен</h2>
+{% if shifts %}
+<table>
+    <thead>
+        <tr>
+            <th>Начало</th>
+            <th>Конец</th>
+            <th>Статус</th>
+            <th>Оплата</th>
+            <th>Примечание</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for shift in shifts %}
+        <tr>
+            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') if shift.started_at else '-' }}</td>
+            <td>{{ shift.ended_at.strftime('%d.%m.%Y %H:%M') if shift.ended_at else '-' }}</td>
+            <td>{{ 'Завершена' if shift.ended_at else 'Активна' }}</td>
+            <td>{{ '%.2f'|format(shift.pay_amount) }} ₽</td>
+            <td>{{ shift.notes or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>История смен пуста.</p>
+{% endif %}
+{% endblock %}
