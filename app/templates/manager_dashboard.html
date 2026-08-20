@@ -1,12 +1,14 @@
-{% extends 'base.html' %}
-{% block content %}
-<h1>Панель руководителя</h1>
-<form method="post" action="/logout" style="margin-bottom: 16px;">
+﻿{% extends 'base.html' %}
+{% block page_title %}Панель руководителя{% endblock %}
+{% block header_actions %}
+<form method="post" action="/logout">
     <button type="submit" class="secondary">Выйти</button>
 </form>
-
+{% endblock %}
+{% block content %}
 <div class="toolbar">
-    <form method="get" action="/manager" class="filter-form">
+    <div class="muted">Сводка по рабочему дню</div>
+    <form method="get" action="/manager" class="filter-form" style="display: flex; flex-direction: row; gap: 12px; align-items: end;">
         <label>
             Дата с
             <input type="date" name="start_date" value="{{ filter_start or '' }}">
@@ -46,255 +48,492 @@
     </div>
 </div>
 
-<div class="panel-grid">
-    <div class="panel">
-        <h2>Добавить сотрудника</h2>
-        <form method="post" action="/manager/add_employee" class="stack-form">
-            <label>
-                ФИО
-                <input type="text" name="full_name" placeholder="Например: Анна Иванова" required>
-            </label>
-            <label>
-                Логин
-                <input type="text" name="username" placeholder="Например: ivan" required>
-            </label>
-            <label>
-                Пароль
-                <input type="password" name="password" placeholder="Придумайте пароль" required>
-            </label>
-            <label>
-                Должность
-                <input type="text" name="role" value="staff" placeholder="Например: администратор, кассир, менеджер">
-            </label>
-            <label>
-                Телефон
-                <input type="text" name="phone" placeholder="+7...">
-            </label>
-            <label>
-                Telegram ID
-                <input type="text" name="telegram_id" placeholder="123456789">
-            </label>
-            <label>
-                Ставка ₽/ч
-                <input type="number" name="hourly_rate" step="0.01" min="0" value="250">
-            </label>
-            <button type="submit">Добавить</button>
-        </form>
-    </div>
-
-    <div class="panel">
-        <h2>Начать смену</h2>
-        <form method="post" action="/manager/checkin" class="stack-form">
-            <label>
-                Сотрудник
-                <select name="employee_id" required>
-                    {% for employee in employees %}
-                    <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                Примечание
-                <input type="text" name="notes" placeholder="Например: вечерняя смена">
-            </label>
-            <button type="submit">Начать смену</button>
-        </form>
-    </div>
-</div>
-
-<h2>Активные смены</h2>
-{% if active_shifts %}
-<table>
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Начало</th>
-            <th>Примечание</th>
-            <th>Действие</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for shift in active_shifts %}
-        <tr>
-            <td>{{ shift.employee.full_name }}</td>
-            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>{{ shift.notes or '-' }}</td>
-            <td>
-                <form method="post" action="/manager/checkout">
-                    <input type="hidden" name="shift_id" value="{{ shift.id }}">
-                    <button type="submit" class="secondary">Завершить</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>Сейчас активных смен нет.</p>
-{% endif %}
-
-<h2>Последние завершённые смены</h2>
-{% if recent_shifts %}
-<table>
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Начало</th>
-            <th>Конец</th>
-            <th>Оплата</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for shift in recent_shifts %}
-        <tr>
-            <td>{{ shift.employee.full_name }}</td>
-            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>{{ shift.ended_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>{{ '%.2f'|format(shift.pay_amount) }} ₽</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>За выбранный период завершённых смен нет.</p>
-{% endif %}
-
-<div class="panel-grid">
-    <div class="panel">
-        <h2>Зафиксировать выплату</h2>
-        <form method="post" action="/manager/add_payment" class="stack-form">
-            <label>
-                Сотрудник
-                <select name="employee_id" required>
-                    {% for employee in employees %}
-                    <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                Сумма выплаты
-                <input type="number" name="amount" step="0.01" min="0" value="0" required>
-            </label>
-            <div class="inline-fields">
-                <label>
-                    Период с
-                    <input type="date" name="period_start">
-                </label>
-                <label>
-                    Период по
-                    <input type="date" name="period_end">
-                </label>
+<div class="accordion is-open">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Календарь смен</span>
+        <span class="muted">{{ schedule_month_label }}</span>
+    </button>
+    <div class="accordion-content">
+        <div class="calendar-shell" style="padding-top: 18px;">
+            <div class="schedule-header">
+                <div>
+                    <div class="muted">Расписание сотрудников</div>
+                    <h2 style="margin: 6px 0 0;">План смен</h2>
+                </div>
+                <div class="schedule-actions">
+                    <a class="inline-link" href="/manager?schedule_month={{ prev_month.strftime('%Y-%m') }}">← Предыдущий</a>
+                    <strong>{{ schedule_month_label }}</strong>
+                    <a class="inline-link" href="/manager?schedule_month={{ next_month.strftime('%Y-%m') }}">Следующий →</a>
+                </div>
             </div>
-            <label>
-                Комментарий
-                <input type="text" name="note" placeholder="Например: аванс, зарплата, компенсация">
-            </label>
-            <button type="submit">Сохранить выплату</button>
-        </form>
+
+            <form method="post" action="/manager/add_schedule_entry" class="stack-form" id="schedule-form" style="max-width: 780px;">
+                <div class="inline-fields" style="align-items: end;">
+                    <label>
+                        Сотрудник
+                        <select name="employee_id" required>
+                            {% for employee in employees %}
+                            <option value="{{ employee.id }}">{{ employee.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        Дата
+                        <input type="date" name="work_date" id="schedule-date" required>
+                    </label>
+                    <label>
+                        Тип смены
+                        <select name="shift_type" required>
+                            <option value="day">Дневная (12h)</option>
+                            <option value="night">Ночная (12h)</option>
+                        </select>
+                    </label>
+                    <label>
+                        Примечание
+                        <input type="text" name="notes" placeholder="Например: касса">
+                    </label>
+                </div>
+                <button type="submit" style="max-width: 180px;">Добавить смену</button>
+            </form>
+
+            <div class="calendar-grid">
+                <div class="calendar-head">Пн</div>
+                <div class="calendar-head">Вт</div>
+                <div class="calendar-head">Ср</div>
+                <div class="calendar-head">Чт</div>
+                <div class="calendar-head">Пт</div>
+                <div class="calendar-head">Сб</div>
+                <div class="calendar-head">Вс</div>
+
+                {% for day in schedule_calendar %}
+                <div class="calendar-cell {% if not day.is_current_month %}muted-day{% endif %}" data-date="{{ day.date.strftime('%Y-%m-%d') }}" tabindex="0" role="button" aria-label="Назначить смену на {{ day.date.strftime('%d.%m.%Y') }}">
+                    <div class="calendar-date">
+                        <span>{{ day.date.day }}</span>
+                        {% if day.date.day == 1 or day.date.strftime('%d.%m.%Y') == today.strftime('%d.%m.%Y') %}
+                        <span class="today-badge">{% if day.date.day == 1 %}мес.{% else %}сегодня{% endif %}</span>
+                        {% endif %}
+                    </div>
+                    {% if day.entries %}
+                        {% for entry in day.entries %}
+                        <div class="shift-chip {{ entry.shift_type }}">
+                            <span>{{ entry.employee.full_name }}</span>
+                            <span>{{ 'Д' if entry.shift_type == 'day' else 'Н' }}</span>
+                        </div>
+                        <form method="post" action="/manager/delete_schedule_entry/{{ entry.id }}" style="margin: 0;">
+                            <button type="submit" class="secondary" style="padding: 5px 8px; font-size: 0.7rem; width: 100%;">Удалить</button>
+                        </form>
+                        {% endfor %}
+                    {% else %}
+                        <span class="calendar-empty">Свободно</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </div>
 
-<h2>История выплат</h2>
-{% if payments %}
-<table>
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Период</th>
-            <th>Сумма</th>
-            <th>Дата выплаты</th>
-            <th>Комментарий</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for payment in payments %}
-        <tr>
-            <td>{{ payment.employee.full_name }}</td>
-            <td>{{ payment.period_start.strftime('%d.%m.%Y') if payment.period_start else '-' }} - {{ payment.period_end.strftime('%d.%m.%Y') if payment.period_end else '-' }}</td>
-            <td>{{ '%.2f'|format(payment.amount) }} ₽</td>
-            <td>{{ payment.paid_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>{{ payment.note or '-' }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>Выплат ещё не было.</p>
-{% endif %}
-
-<h2>Сообщения сотрудников</h2>
-{% if messages %}
-<table>
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Сообщение</th>
-            <th>Время</th>
-            <th>Статус</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for msg in messages %}
-        <tr>
-            <td>{{ msg.employee.full_name }}</td>
-            <td>{{ msg.text }}</td>
-            <td>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>
-                {% if msg.is_read %}
-                <span class="badge completed">Прочитано</span>
-                {% else %}
-                <form method="post" action="/manager/mark_message_read/{{ msg.id }}">
-                    <button type="submit" class="secondary">Отметить</button>
+<div class="accordion is-open" id="employees">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Сотрудники</span>
+    </button>
+    <div class="accordion-content">
+        <div class="panel-grid" style="padding-top: 18px;">
+            <div class="panel">
+                <h2>Добавить сотрудника</h2>
+                <form method="post" action="/manager/add_employee" class="stack-form">
+                    <label>
+                        ФИО
+                        <input type="text" name="full_name" placeholder="Например: Анна Иванова" required>
+                    </label>
+                    <label>
+                        Логин
+                        <input type="text" name="username" placeholder="Например: ivan" required>
+                    </label>
+                    <label>
+                        Пароль
+                        <input type="password" name="password" placeholder="Придумайте пароль" required>
+                    </label>
+                    <label>
+                        Должность
+                        <input type="text" name="role" value="staff" placeholder="Например: администратор, кассир, менеджер">
+                    </label>
+                    <label>
+                        Телефон
+                        <input type="text" name="phone" placeholder="+7...">
+                    </label>
+                    <label>
+                        Telegram ID
+                        <input type="text" name="telegram_id" placeholder="123456789">
+                    </label>
+                    <label>
+                        Ставка ₽/ч
+                        <input type="number" name="hourly_rate" step="0.01" min="0" value="250">
+                    </label>
+                    <button type="submit">Добавить</button>
                 </form>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>Сообщений от сотрудников пока нет.</p>
-{% endif %}
+            </div>
 
-<h2>Отчет по сотрудникам</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Должность</th>
-            <th>Часов</th>
-            <th>Смен</th>
-            <th>Итог по сменам</th>
-            <th>Выплачено</th>
-            <th>К выплате</th>
-            <th>Статус</th>
-            <th>Действие</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in summary.employees %}
-        <tr>
-            <td>{{ item.full_name }}</td>
-            <td>{{ item.role }}</td>
-            <td>{{ '%.2f'|format(item.total_hours) }}</td>
-            <td>{{ item.shift_count }}</td>
-            <td>{{ '%.2f'|format(item.total_payment) }} ₽</td>
-            <td>{{ '%.2f'|format(item.total_paid) }} ₽</td>
-            <td>{{ '%.2f'|format(item.amount_due) }} ₽</td>
-            <td>
-                {% if item.active_shift %}
-                <span class="badge active">На смене</span>
+            <div class="panel">
+                <h2>Редактирование сотрудников</h2>
+                {% if employees %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Имя</th>
+                            <th>Логин</th>
+                            <th>Роль</th>
+                            <th>Опции</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                        <tr>
+                            <td>{{ employee.full_name }}</td>
+                            <td>{{ employee.username }}</td>
+                            <td>{{ employee.role }}</td>
+                            <td>
+                                <form method="post" action="/manager/update_employee/{{ employee.id }}" class="mini-form">
+                                    <input type="text" name="full_name" value="{{ employee.full_name }}">
+                                    <input type="text" name="username" value="{{ employee.username }}">
+                                    <input type="text" name="role" value="{{ employee.role }}">
+                                    <input type="text" name="phone" value="{{ employee.phone or '' }}" placeholder="Телефон">
+                                    <input type="text" name="telegram_id" value="{{ employee.telegram_id or '' }}" placeholder="Telegram ID">
+                                    <input type="number" step="0.01" min="0" name="hourly_rate" value="{{ employee.hourly_rate }}">
+                                    <input type="password" name="password" placeholder="Новый пароль">
+                                    <label style="display:flex; flex-direction: row; align-items:center; gap:8px;">
+                                        <input type="checkbox" name="is_active" {% if employee.is_active %}checked{% endif %}> активен
+                                    </label>
+                                    <button type="submit" class="secondary">Сохранить</button>
+                                    <button type="submit" class="secondary" formaction="/manager/delete_employee/{{ employee.id }}" formmethod="post" onclick="return confirm('Удалить сотрудника {{ employee.full_name }}?');">Удалить</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 {% else %}
-                <span class="badge completed">Свободен</span>
+                <p class="muted">Сотрудников пока нет.</p>
                 {% endif %}
-            </td>
-            <td>
-                <form method="post" action="/manager/delete_employee/{{ item.employee_id or item.id }}" onsubmit="return confirm('Удалить сотрудника {{ item.full_name }}?');">
-                    <button type="submit" class="secondary">Удалить</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="accordion is-open" id="shifts">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Смены</span>
+    </button>
+    <div class="accordion-content">
+        <div style="padding-top: 18px;">
+            <div class="panel-grid">
+                <div class="panel">
+                    <h2>Начать смену</h2>
+                    <form method="post" action="/manager/checkin" class="stack-form">
+                        <label>
+                            Сотрудник
+                            <select name="employee_id" required>
+                                {% for employee in employees %}
+                                <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            Примечание
+                            <input type="text" name="notes" placeholder="Например: вечерняя смена">
+                        </label>
+                        <button type="submit">Начать смену</button>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <h2>Активные смены</h2>
+                    {% if active_shifts %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Сотрудник</th>
+                                <th>Начало</th>
+                                <th>Примечание</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shift in active_shifts %}
+                            <tr>
+                                <td>{{ shift.employee.full_name }}</td>
+                                <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                <td>{{ shift.notes or '-' }}</td>
+                                <td>
+                                    <form method="post" action="/manager/checkout">
+                                        <input type="hidden" name="shift_id" value="{{ shift.id }}">
+                                        <button type="submit" class="secondary">Завершить</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="muted">Сейчас активных смен нет.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Последние завершённые смены</h2>
+                {% if recent_shifts %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Сотрудник</th>
+                            <th>Начало</th>
+                            <th>Конец</th>
+                            <th>Оплата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for shift in recent_shifts %}
+                        <tr>
+                            <td>{{ shift.employee.full_name }}</td>
+                            <td>{{ shift.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ shift.ended_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ '%.2f'|format(shift.pay_amount) }} ₽</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="muted">За выбранный период завершённых смен нет.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="accordion is-open" id="payments">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Выплаты</span>
+    </button>
+    <div class="accordion-content">
+        <div style="padding-top: 18px;">
+            <div class="panel-grid">
+                <div class="panel">
+                    <h2>Зафиксировать выплату</h2>
+                    <form method="post" action="/manager/add_payment" class="stack-form">
+                        <label>
+                            Сотрудник
+                            <select name="employee_id" required>
+                                {% for employee in employees %}
+                                <option value="{{ employee.id }}">{{ employee.full_name }} ({{ employee.role }})</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            Сумма выплаты
+                            <input type="number" name="amount" step="0.01" min="0" value="0" required>
+                        </label>
+                        <div class="inline-fields">
+                            <label>
+                                Период с
+                                <input type="date" name="period_start">
+                            </label>
+                            <label>
+                                Период по
+                                <input type="date" name="period_end">
+                            </label>
+                        </div>
+                        <label>
+                            Комментарий
+                            <input type="text" name="note" placeholder="Например: аванс, зарплата, компенсация">
+                        </label>
+                        <button type="submit">Сохранить выплату</button>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <h2>История выплат</h2>
+                    {% if payments %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Сотрудник</th>
+                                <th>Период</th>
+                                <th>Сумма</th>
+                                <th>Комментарий</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.employee.full_name }}</td>
+                                <td>{{ payment.period_start.strftime('%d.%m.%Y') if payment.period_start else '-' }} - {{ payment.period_end.strftime('%d.%m.%Y') if payment.period_end else '-' }}</td>
+                                <td>{{ '%.2f'|format(payment.amount) }} ₽</td>
+                                <td>{{ payment.note or '-' }}</td>
+                                <td>
+                                    <form method="post" action="/manager/update_payment/{{ payment.id }}" class="mini-form">
+                                        <input type="hidden" name="employee_id" value="{{ payment.employee_id }}">
+                                        <input type="number" step="0.01" min="0" name="amount" value="{{ payment.amount }}" required>
+                                        <input type="date" name="period_start" value="{{ payment.period_start.strftime('%Y-%m-%d') if payment.period_start else '' }}">
+                                        <input type="date" name="period_end" value="{{ payment.period_end.strftime('%Y-%m-%d') if payment.period_end else '' }}">
+                                        <input type="text" name="note" value="{{ payment.note or '' }}" placeholder="Комментарий">
+                                        <button type="submit" class="secondary">Сохранить</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="muted">Выплат ещё не было.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="accordion is-open" id="messages">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Сообщения</span>
+    </button>
+    <div class="accordion-content">
+        <div style="padding-top: 18px;">
+            {% if messages %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Сообщение</th>
+                        <th>Время</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td>{{ msg.employee.full_name }}</td>
+                        <td>{{ msg.text }}</td>
+                        <td>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            {% if msg.is_read %}
+                            <span class="badge completed">Прочитано</span>
+                            {% else %}
+                            <form method="post" action="/manager/mark_message_read/{{ msg.id }}">
+                                <button type="submit" class="secondary">Отметить</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="muted">Сообщений от сотрудников пока нет.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="accordion is-open" id="report">
+    <button class="accordion-toggle" type="button" aria-expanded="true">
+        <span class="left"><span class="chevron"></span>Отчёт</span>
+    </button>
+    <div class="accordion-content">
+        <div style="padding-top: 18px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Логин</th>
+                        <th>Должность</th>
+                        <th>Ставка</th>
+                        <th>Часов</th>
+                        <th>Итог</th>
+                        <th>К выплате</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in summary.employees %}
+                    <tr>
+                        <td>{{ item.full_name }}</td>
+                        <td>{{ item.employee_id }}</td>
+                        <td>{{ item.role }}</td>
+                        <td>{{ '%.2f'|format(item.hourly_rate) }} ₽/ч</td>
+                        <td>{{ '%.2f'|format(item.total_hours) }}</td>
+                        <td>{{ '%.2f'|format(item.total_payment) }} ₽</td>
+                        <td>{{ '%.2f'|format(item.amount_due) }} ₽</td>
+                        <td>
+                            {% if item.active_shift %}
+                            <span class="badge active">На смене</span>
+                            {% else %}
+                            <span class="badge completed">Свободен</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="accordion" id="settings">
+    <button class="accordion-toggle" type="button" aria-expanded="false">
+        <span class="left"><span class="chevron"></span>Настройки клуба</span>
+    </button>
+    <div class="accordion-content hidden">
+        <div class="panel" style="margin-top: 16px;">
+            <h2>Название клуба</h2>
+            <form method="post" action="/manager/update_club_name" class="stack-form">
+                <label>
+                    Название
+                    <input type="text" name="club_name" value="{{ club_name or 'Club Shift Manager' }}" required>
+                </label>
+                <button type="submit">Сохранить</button>
+            </form>
+        </div>
+
+        <div class="panel">
+            <h2>Настройки Telegram-бота</h2>
+            <form method="post" action="/manager/update_bot_settings" class="stack-form">
+                <label style="display:flex; flex-direction: row; align-items:center; gap:8px;">
+                    <input type="checkbox" name="bot_enabled" {% if bot_enabled %}checked{% endif %}> Бот включён
+                </label>
+                <label>
+                    Статус/сообщение бота
+                    <input type="text" name="bot_status_message" value="{{ bot_status_message or 'Бот готов к работе' }}" placeholder="Бот готов к работе">
+                </label>
+                <button type="submit">Сохранить настройки бота</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const cells = document.querySelectorAll('.calendar-cell');
+        const dateInput = document.getElementById('schedule-date');
+
+        cells.forEach(function (cell) {
+            cell.addEventListener('click', function () {
+                const selectedDate = cell.dataset.date;
+                if (!selectedDate || !dateInput) return;
+                dateInput.value = selectedDate;
+                document.querySelectorAll('.calendar-cell').forEach(function (item) {
+                    item.classList.toggle('selected', item === cell);
+                });
+            });
+
+            cell.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    cell.click();
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
